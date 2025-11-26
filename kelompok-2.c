@@ -319,21 +319,51 @@ void displayAllFilms(Graph *graph)
         printf("   Genre: %s\n", graph->films[i].genre);
         printf("   Aktor Utama: %s\n", graph->films[i].aktor);
 
-        // Tampilkan film yang terkait
         AdjListNode *temp = graph->array[i].head;
         if (temp != NULL)
         {
-            printf("   Film Terkait: ");
-            while (temp != NULL)
+            // Hitung jumlah node
+            int count = 0;
+            AdjListNode *t = temp;
+            while (t != NULL)
             {
-                printf("%s (bobot: %d)", graph->films[temp->dest].judul, temp->weight);
-                temp = temp->next;
-                if (temp != NULL)
-                    printf(", ");
+                count++;
+                t = t->next;
+            }
+
+            // Salin ke array
+            AdjListNode **arr = (AdjListNode **)malloc(count * sizeof(AdjListNode *));
+            t = temp;
+            for (int k = 0; k < count; k++)
+            {
+                arr[k] = t;
+                t = t->next;
+            }
+
+            // Sort array berdasarkan bobot (descending)
+            for (int a = 0; a < count - 1; a++)
+            {
+                for (int b = 0; b < count - a - 1; b++)
+                {
+                    if (arr[b]->weight < arr[b + 1]->weight)
+                    {
+                        AdjListNode *tmp = arr[b];
+                        arr[b] = arr[b + 1];
+                        arr[b + 1] = tmp;
+                    }
+                }
+            }
+
+            // Cetak hasil sorting
+            printf("   Film Terkait : ");
+            for (int k = 0; k < count; k++)
+            {
+                printf("%s (bobot: %d)", graph->films[arr[k]->dest].judul, arr[k]->weight);
+                if (k < count - 1) printf(", ");
             }
             printf("\n");
+            free(arr);
         }
-        printf("\n");
     }
 }
 
