@@ -666,27 +666,67 @@ void recommendByPreference(Graph *graph)
     }
 }
 
-// Fungsi untuk inisialisasi data film awal
-void initializeData(Graph *graph)
+void loadFromCSV(Graph *graph, const char *filename)
 {
-    // Data film awal (minimal 10 film)
-    addFilm(graph, "Inception", "Sci-Fi", "Leonardo DiCaprio", 2010);
-    addFilm(graph, "Titanic", "Romance", "Leonardo DiCaprio", 1997);
-    addFilm(graph, "Interstellar", "Sci-Fi", "Matthew McConaughey", 2014);
-    addFilm(graph, "The Dark Knight", "Action", "Christian Bale", 2008);
-    addFilm(graph, "Memento", "Mystery", "Guy Pearce", 2000);
-    addFilm(graph, "Shutter Island", "Mystery", "Leonardo DiCaprio", 2010);
-    addFilm(graph, "Avatar", "Sci-Fi", "Sam Worthington", 2009);
-    addFilm(graph, "Dunkirk", "War", "Fionn Whitehead", 2017);
-    addFilm(graph, "Joker", "Drama", "Joaquin Phoenix", 2019);
-    addFilm(graph, "Tenet", "Sci-Fi", "John David Washington", 2020);
+    FILE *fp = fopen(filename, "r");
+    if (!fp)
+    {
+        printf("CSV tidak ditemukan. Program dimulai tanpa data.\n");
+        return;
+    }
+
+    char line[256];
+
+    // Lewati baris header
+    fgets(line, sizeof(line), fp);
+
+    while (fgets(line, sizeof(line), fp))
+    {
+        char judul[100], genre[100], aktor[100];
+        int tahun;
+
+        // Format: Judul,Genre,Aktor,Tahun
+        sscanf(line, " \"%[^\"]\",\"%[^\"]\",\"%[^\"]\",%d",
+               judul, genre, aktor, &tahun);
+
+        addFilm(graph, judul, genre, aktor, tahun);
+    }
+
+    fclose(fp);
+    printf("Data berhasil dimuat dari CSV.\n");
+}
+
+void exportToCSV(Graph *graph, const char *filename)
+{
+    FILE *fp = fopen(filename, "w");
+    if (!fp)
+    {
+        printf("Gagal membuat file CSV!\n");
+        return;
+    }
+
+    // Header CSV
+    fprintf(fp, "Judul,Genre,Aktor,Tahun\n");
+
+    // Isi CSV
+    for (int i = 0; i < graph->num_films; i++)
+    {
+        fprintf(fp, "\"%s\",\"%s\",\"%s\",%d\n",
+            graph->films[i].judul,
+            graph->films[i].genre,
+            graph->films[i].aktor,
+            graph->films[i].tahun);
+    }
+
+    fclose(fp);
+    printf("CSV berhasil dibuat: %s\n", filename);
 }
 
 // Fungsi utama
 int main()
 {
     Graph *graph = createGraph();
-    initializeData(graph);
+    loadFromCSV(graph, "film.csv");
 
     int choice;
     char judul[MAX_STRING], genre[MAX_STRING], aktor[MAX_STRING];
@@ -702,6 +742,7 @@ int main()
         printf("3. TAMBAH FILM BARU\n");
         printf("4. CARI FILM\n");
         printf("5. HAPUS FILM\n");
+        printf("6. EXPORT KE CSV\n");
         printf("0. KELUAR\n");
         printf("Pilihan: ");
         scanf("%d", &choice);
@@ -815,6 +856,10 @@ int main()
             }
             break;
 
+        case 6:
+            exportToCSV(graph, "film.csv");
+            break;
+            
         case 0:
             printf("Terima kasih telah menggunakan sistem rekomendasi film!\n");
             break;
