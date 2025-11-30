@@ -502,11 +502,7 @@ void BFS(Graph *graph, int startVertex)
     Queue *queue = createQueue();
     int level[MAX_FILM];
     int parentWeight[MAX_FILM];
-    for (int i = 0; i < MAX_FILM; i++)
-    {
-        level[i] = -1;
-        parentWeight[i] = 0;
-    }
+    for (int i = 0; i < MAX_FILM; i++) { level[i] = -1; parentWeight[i] = 0; }
 
     graph->films[startVertex].visited = 1;
     level[startVertex] = 0;
@@ -516,8 +512,7 @@ void BFS(Graph *graph, int startVertex)
     while (!isEmptyQueue(queue))
     {
         int currentVertex = dequeue(queue);
-        if (currentVertex == -1)
-            break;
+        if (currentVertex == -1) break;
 
         // Cetak dengan indentasi sesuai level
         for (int i = 0; i < level[currentVertex]; i++)
@@ -1012,6 +1007,7 @@ void recommendSingleFilter(Graph *graph)
     }
 }
 
+
 // Fungsi utama
 int main()
 {
@@ -1037,8 +1033,7 @@ int main()
         if (scanf("%d", &choice) != 1)
         {
             printf("Input tidak valid.\n");
-            while (getchar() != '\n')
-                ;
+            while (getchar() != '\n');
             continue;
         }
         getchar();
@@ -1057,8 +1052,7 @@ int main()
             if (scanf("%d", &subChoice) != 1)
             {
                 printf("Input tidak valid.\n");
-                while (getchar() != '\n')
-                    ;
+                while (getchar() != '\n');
                 break;
             }
             getchar();
@@ -1071,13 +1065,7 @@ int main()
             case 2:
                 displayAllFilms(graph);
                 printf("Masukkan index film awal (1-%d): ", graph->num_films);
-                if (scanf("%d", &index) != 1)
-                {
-                    printf("Input tidak valid.\n");
-                    while (getchar() != '\n')
-                        ;
-                    break;
-                }
+                if (scanf("%d", &index) != 1) { printf("Input tidak valid.\n"); while (getchar() != '\n'); break; }
                 getchar();
                 if (index >= 1 && index <= graph->num_films)
                 {
@@ -1091,13 +1079,7 @@ int main()
             case 3:
                 displayAllFilms(graph);
                 printf("Masukkan index film awal (1-%d): ", graph->num_films);
-                if (scanf("%d", &index) != 1)
-                {
-                    printf("Input tidak valid.\n");
-                    while (getchar() != '\n')
-                        ;
-                    break;
-                }
+                if (scanf("%d", &index) != 1) { printf("Input tidak valid.\n"); while (getchar() != '\n'); break; }
                 getchar();
                 if (index >= 1 && index <= graph->num_films)
                 {
@@ -1138,25 +1120,13 @@ int main()
             aktor[strcspn(aktor, "\n")] = '\0';
 
             printf("Masukkan tahun rilis: ");
-            if (scanf("%d", &tahun) != 1)
-            {
-                printf("Input tahun tidak valid.\n");
-                while (getchar() != '\n')
-                    ;
-                break;
-            }
+            if (scanf("%d", &tahun) != 1) { printf("Input tahun tidak valid.\n"); while (getchar() != '\n'); break; }
             getchar();
 
             {
                 char konfirmasi;
                 printf("Apakah anda yakin akan menambah film?(y/n)\n");
-                if (scanf("%c", &konfirmasi) != 1)
-                {
-                    printf("Input tidak valid.\n");
-                    while (getchar() != '\n')
-                        ;
-                    break;
-                }
+                if (scanf("%c", &konfirmasi) != 1) { printf("Input tidak valid.\n"); while (getchar() != '\n'); break; }
                 getchar();
                 if (konfirmasi == 'y')
                 {
@@ -1198,13 +1168,7 @@ int main()
             displayAllFilms(graph);
             printf("\nMasukkan index film yang akan dihapus (1-%d): \n", graph->num_films);
             printf("(Ketik 0 untuk membatalkan.)\n");
-            if (scanf("%d", &index) != 1)
-            {
-                printf("Input tidak valid.\n");
-                while (getchar() != '\n')
-                    ;
-                break;
-            }
+            if (scanf("%d", &index) != 1) { printf("Input tidak valid.\n"); while (getchar() != '\n'); break; }
             getchar();
             if (index >= 1 && index <= graph->num_films)
             {
