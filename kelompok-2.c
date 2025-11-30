@@ -7,6 +7,7 @@
 #define MAX_FILM 100
 #define MAX_STRING 100
 
+// untuk standarkan input
 void toLowerCase(char *str)
 {
     for (int i = 0; str[i]; i++)
@@ -219,6 +220,31 @@ void addEdge(Graph *graph, int src, int dest)
     }
 }
 
+void exportToCSV(Graph *graph, const char *filename)
+{
+    FILE *fp = fopen(filename, "w");
+    if (!fp)
+    {
+        printf("Gagal membuat file CSV!\n");
+        return;
+    }
+
+    // Header CSV
+    fprintf(fp, "Judul,Genre,Aktor,Tahun\n");
+
+    // Isi CSV
+    for (int i = 0; i < graph->num_films; i++)
+    {
+        fprintf(fp, "\"%s\",\"%s\",\"%s\",%d\n",
+                graph->films[i].judul,
+                graph->films[i].genre,
+                graph->films[i].aktor,
+                graph->films[i].tahun);
+    }
+
+    fclose(fp);
+}
+
 // Fungsi untuk menambahkan film ke graf
 void addFilm(Graph *graph, char judul[], char genre[], char aktor[], int tahun)
 {
@@ -244,7 +270,53 @@ void addFilm(Graph *graph, char judul[], char genre[], char aktor[], int tahun)
     }
 
     graph->num_films++;
+    exportToCSV(graph, "film.csv");
     printf("Film '%s' berhasil ditambahkan!\n", judul);
+}
+
+void loadFromCSV(Graph *graph, const char *filename)
+{
+    FILE *fp = fopen(filename, "r");
+    if (!fp)
+    {
+        printf("CSV tidak ditemukan. Program dimulai tanpa data.\n");
+        return;
+    }
+
+    char line[256];
+
+    // Lewati baris header
+    fgets(line, sizeof(line), fp);
+
+    while (fgets(line, sizeof(line), fp))
+    {
+        char judul[100], genre[100], aktor[100];
+        int tahun;
+
+        // Format: Judul,Genre,Aktor,Tahun
+        if (sscanf(line, " \"%[^\"]\",\"%[^\"]\",\"%[^\"]\",%d", judul, genre, aktor, &tahun))
+        {
+            Film f;
+            strcpy(f.judul, judul);
+            strcpy(f.genre, genre);
+            strcpy(f.aktor, aktor);
+            f.tahun = tahun;
+            f.visited = 0;
+
+            graph->films[graph->num_films++] = f;
+        }
+    }
+
+    for (int i = 0; i < graph->num_films; i++)
+    {
+        for (int j = i + 1; j < graph->num_films; j++)
+        {
+            addEdge(graph, i, j);
+        }
+    }
+
+    fclose(fp);
+    printf("Data berhasil dimuat dari CSV.\n");
 }
 
 // Fungsi untuk menghapus film dari graf
@@ -265,7 +337,7 @@ void deleteFilm(Graph *graph, int index)
     }
 
     // Reset adjacency list dan bangun ulang
-    for (int i = 0; i < MAX_FILM; i++)
+    for (int i = 0; i < graph->num_films; i++)
     {
         AdjListNode *temp = graph->array[i].head;
         while (temp != NULL)
@@ -287,6 +359,7 @@ void deleteFilm(Graph *graph, int index)
             addEdge(graph, i, j);
         }
     }
+    exportToCSV(graph, "film.csv");
 }
 
 // Fungsi untuk mencari film berdasarkan judul
@@ -359,7 +432,8 @@ void displayAllFilms(Graph *graph)
             for (int k = 0; k < count; k++)
             {
                 printf("%s (bobot: %d)", graph->films[arr[k]->dest].judul, arr[k]->weight);
-                if (k < count - 1) printf(", ");
+                if (k < count - 1)
+                    printf(", ");
             }
             printf("\n");
             free(arr);
@@ -380,9 +454,11 @@ void BFS(Graph *graph, int startVertex)
 
     Queue *queue = createQueue();
     int level[MAX_FILM] = {0};
+    int parentWeight[MAX_FILM] = {0};
 
     graph->films[startVertex].visited = 1;
     level[startVertex] = 0;
+    parentWeight[startVertex] = 0;
     enqueue(queue, startVertex);
 
     while (!isEmptyQueue(queue))
@@ -394,20 +470,63 @@ void BFS(Graph *graph, int startVertex)
         {
             printf("  ");
         }
-        printf("- %s (%d)\n", graph->films[currentVertex].judul, graph->films[currentVertex].tahun);
 
+        // Tampilkan node
+        if (level[currentVertex] == 0)
+        {
+            printf("- %s (%d)\n", graph->films[currentVertex].judul, graph->films[currentVertex].tahun);
+        }
+        else
+        {
+            printf("- %s (bobot: %d)\n", graph->films[currentVertex].judul, parentWeight[currentVertex]);
+        }
+
+        // Kumpulkan semua tetangga yang BELUM VISITED
         AdjListNode *temp = graph->array[currentVertex].head;
+        int neighbors[MAX_FILM];
+        int weights[MAX_FILM];
+        int neighborCount = 0;
+
+        // Cek visited SEBELUM sorting
         while (temp != NULL)
         {
             int adjVertex = temp->dest;
-
-            if (!graph->films[adjVertex].visited)
+            if (!graph->films[adjVertex].visited) // Cek di sini
             {
-                graph->films[adjVertex].visited = 1;
-                level[adjVertex] = level[currentVertex] + 1;
-                enqueue(queue, adjVertex);
+                neighbors[neighborCount] = adjVertex;
+                weights[neighborCount] = temp->weight;
+                neighborCount++;
+                graph->films[adjVertex].visited = 1; // MARK VISITED DI SINI!
             }
             temp = temp->next;
+        }
+
+        // Sort tetangga berdasarkan bobot (descending)
+        for (int i = 0; i < neighborCount - 1; i++)
+        {
+            for (int j = 0; j < neighborCount - i - 1; j++)
+            {
+                if (weights[j] < weights[j + 1])
+                {
+                    // Swap weights
+                    int tempWeight = weights[j];
+                    weights[j] = weights[j + 1];
+                    weights[j + 1] = tempWeight;
+
+                    // Swap neighbors
+                    int tempNeighbor = neighbors[j];
+                    neighbors[j] = neighbors[j + 1];
+                    neighbors[j + 1] = tempNeighbor;
+                }
+            }
+        }
+
+        // Enqueue tetangga yang sudah disort
+        for (int i = 0; i < neighborCount; i++)
+        {
+            level[neighbors[i]] = level[currentVertex] + 1;
+            parentWeight[neighbors[i]] = weights[i];
+            enqueue(queue, neighbors[i]);
         }
     }
 
@@ -429,26 +548,71 @@ void BFS(Graph *graph, int startVertex)
 }
 
 // Fungsi DFS rekursif dengan indentasi
-void DFSRecursive(Graph *graph, int vertex, int depth)
+void DFSRecursive(Graph *graph, int vertex, int depth, int edgeWeight)
 {
-    // Cetak dengan indentasi sesuai depth
+    // 1. Cetak node saat ini
     for (int i = 0; i < depth; i++)
     {
         printf("  ");
     }
-    printf("- %s (%d)\n", graph->films[vertex].judul, graph->films[vertex].tahun);
+
+    if (depth == 0)
+    {
+        printf("- %s (%d)\n", graph->films[vertex].judul, graph->films[vertex].tahun);
+    }
+    else
+    {
+        printf("- %s (bobot: %d)\n", graph->films[vertex].judul, edgeWeight);
+    }
 
     graph->films[vertex].visited = 1;
 
+    // 2. Kumpulkan tetangga yang belum dikunjungi
     AdjListNode *temp = graph->array[vertex].head;
+    int neighbors[MAX_FILM];
+    int weights[MAX_FILM];
+    int neighborCount = 0;
+
     while (temp != NULL)
     {
         int adjVertex = temp->dest;
         if (!graph->films[adjVertex].visited)
         {
-            DFSRecursive(graph, adjVertex, depth + 1);
+            neighbors[neighborCount] = adjVertex;
+            weights[neighborCount] = temp->weight;
+            neighborCount++;
         }
         temp = temp->next;
+    }
+
+    // 3. Sort tetangga berdasarkan bobot (Descending) agar menelusuri yang paling mirip dulu
+    for (int i = 0; i < neighborCount - 1; i++)
+    {
+        for (int j = 0; j < neighborCount - i - 1; j++)
+        {
+            if (weights[j] < weights[j + 1])
+            {
+                // Swap weights
+                int tempWeight = weights[j];
+                weights[j] = weights[j + 1];
+                weights[j + 1] = tempWeight;
+
+                // Swap neighbors
+                int tempNeighbor = neighbors[j];
+                neighbors[j] = neighbors[j + 1];
+                neighbors[j + 1] = tempNeighbor;
+            }
+        }
+    }
+
+    // 4. Lakukan rekursi pada tetangga yang sudah diurutkan
+    for (int i = 0; i < neighborCount; i++)
+    {
+        // Cek lagi visited karena bisa jadi sudah dikunjungi oleh cabang rekursi lain dalam loop ini
+        if (!graph->films[neighbors[i]].visited)
+        {
+            DFSRecursive(graph, neighbors[i], depth + 1, weights[i]);
+        }
     }
 }
 
@@ -463,7 +627,7 @@ void DFS(Graph *graph, int startVertex)
         graph->films[i].visited = 0;
     }
 
-    DFSRecursive(graph, startVertex, 0);
+    DFSRecursive(graph, startVertex, 0, 0); // Start dengan bobot 0
 
     // Tampilkan node yang tidak terhubung
     printf("\nFilm yang tidak terhubung:\n");
@@ -471,11 +635,7 @@ void DFS(Graph *graph, int startVertex)
     {
         if (!graph->films[i].visited)
         {
-            for (int j = 0; j < 1; j++)
-            {
-                printf("  ");
-            }
-            printf("- %s (%d)\n", graph->films[i].judul, graph->films[i].tahun);
+            printf("  - %s (%d)\n", graph->films[i].judul, graph->films[i].tahun);
         }
     }
 }
@@ -580,6 +740,12 @@ void recommendByPreference(Graph *graph)
     scanf("%d", &genreChoice);
     getchar();
 
+    if (genreChoice < 1 || genreChoice > genreCount)
+    {
+        printf("Pilihan tidak valid!\n");
+        return;
+    }
+
     // Pilih aktor
     printf("\nPilih aktor utama:\n");
     for (int i = 0; i < actorCount; i++)
@@ -666,62 +832,6 @@ void recommendByPreference(Graph *graph)
     }
 }
 
-void loadFromCSV(Graph *graph, const char *filename)
-{
-    FILE *fp = fopen(filename, "r");
-    if (!fp)
-    {
-        printf("CSV tidak ditemukan. Program dimulai tanpa data.\n");
-        return;
-    }
-
-    char line[256];
-
-    // Lewati baris header
-    fgets(line, sizeof(line), fp);
-
-    while (fgets(line, sizeof(line), fp))
-    {
-        char judul[100], genre[100], aktor[100];
-        int tahun;
-
-        // Format: Judul,Genre,Aktor,Tahun
-        sscanf(line, " \"%[^\"]\",\"%[^\"]\",\"%[^\"]\",%d",
-               judul, genre, aktor, &tahun);
-
-        addFilm(graph, judul, genre, aktor, tahun);
-    }
-
-    fclose(fp);
-    printf("Data berhasil dimuat dari CSV.\n");
-}
-
-void exportToCSV(Graph *graph, const char *filename)
-{
-    FILE *fp = fopen(filename, "w");
-    if (!fp)
-    {
-        printf("Gagal membuat file CSV!\n");
-        return;
-    }
-
-    // Header CSV
-    fprintf(fp, "Judul,Genre,Aktor,Tahun\n");
-
-    // Isi CSV
-    for (int i = 0; i < graph->num_films; i++)
-    {
-        fprintf(fp, "\"%s\",\"%s\",\"%s\",%d\n",
-            graph->films[i].judul,
-            graph->films[i].genre,
-            graph->films[i].aktor,
-            graph->films[i].tahun);
-    }
-
-    fclose(fp);
-    printf("CSV berhasil dibuat: %s\n", filename);
-}
-
 // Fungsi utama
 int main()
 {
@@ -742,7 +852,6 @@ int main()
         printf("3. TAMBAH FILM BARU\n");
         printf("4. CARI FILM\n");
         printf("5. HAPUS FILM\n");
-        printf("6. EXPORT KE CSV\n");
         printf("0. KELUAR\n");
         printf("Pilihan: ");
         scanf("%d", &choice);
@@ -754,6 +863,7 @@ int main()
             printf("\n1. Berdasarkan Preferensi Pribadi\n");
             printf("2. Comfort Zone (BFS)\n");
             printf("3. Exploration (DFS)\n");
+            printf("0. Kembali ke menu\n");
             printf("Pilihan rekomendasi: ");
             int subChoice;
             scanf("%d", &subChoice);
@@ -766,12 +876,12 @@ int main()
                 break;
             case 2:
                 displayAllFilms(graph);
-                printf("Masukkan index film awal (0-%d): ", graph->num_films - 1);
+                printf("Masukkan index film awal (1-%d): ", graph->num_films);
                 scanf("%d", &index);
                 getchar();
-                if (index >= 0 && index < graph->num_films)
+                if (index >= 1 && index <= graph->num_films)
                 {
-                    BFS(graph, index);
+                    BFS(graph, index - 1);
                 }
                 else
                 {
@@ -780,17 +890,20 @@ int main()
                 break;
             case 3:
                 displayAllFilms(graph);
-                printf("Masukkan index film awal (0-%d): ", graph->num_films - 1);
+                printf("Masukkan index film awal (1-%d): ", graph->num_films);
                 scanf("%d", &index);
                 getchar();
-                if (index >= 0 && index < graph->num_films)
+                if (index >= 1 && index <= graph->num_films)
                 {
-                    DFS(graph, index);
+                    DFS(graph, index - 1);
                 }
                 else
                 {
                     printf("Index tidak valid!\n");
                 }
+                break;
+            case 0:
+                printf("Kembali ke menu.\n");
                 break;
             default:
                 printf("Pilihan tidak valid!\n");
@@ -818,11 +931,27 @@ int main()
             scanf("%d", &tahun);
             getchar();
 
-            addFilm(graph, judul, genre, aktor, tahun);
+            char konfirmasi;
+            printf("Apakah anda yakin akan menambah film?(y/n)\n");
+            scanf("%c", &konfirmasi);
+            getchar();
+            if (konfirmasi == 'y')
+            {
+                addFilm(graph, judul, genre, aktor, tahun);
+            }
+            else if (konfirmasi == 'n')
+            {
+                printf("Batal menambahkan film.\n");
+            }
+            else
+            {
+                printf("Input tidak valid.\n");
+            }
+
             break;
 
         case 4:
-            printf("Masukkan judul film yang dicari: ");
+            printf("Masukkan judul film yang dicari: \n");
             fgets(judul, MAX_STRING, stdin);
             judul[strcspn(judul, "\n")] = 0;
 
@@ -843,12 +972,17 @@ int main()
 
         case 5:
             displayAllFilms(graph);
-            printf("Masukkan index film yang akan dihapus (1-%d): ", graph->num_films);
+            printf("\nMasukkan index film yang akan dihapus (1-%d): \n", graph->num_films);
+            printf("(Ketik 0 untuk membatalkan.)\n");
             scanf("%d", &index);
             getchar();
             if (index >= 1 && index <= graph->num_films)
             {
                 deleteFilm(graph, index - 1);
+            }
+            else if (index == 0)
+            {
+                printf("Membatalkan penghapusan film.\n");
             }
             else
             {
@@ -856,10 +990,6 @@ int main()
             }
             break;
 
-        case 6:
-            exportToCSV(graph, "film.csv");
-            break;
-            
         case 0:
             printf("Terima kasih telah menggunakan sistem rekomendasi film!\n");
             break;
